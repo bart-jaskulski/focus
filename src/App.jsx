@@ -68,7 +68,7 @@ export default function App() {
       const theme = THEMES.find(t => t.name === selectedTheme);
 
       setAudio(new Audio())
-      audio.src = `/api/audio?theme=${encodeURIComponent(theme.query)}`;
+      audio.src = `/.netlify/functions/audio?theme=${encodeURIComponent(theme.query)}`;
       await audio.play();
       
       setIsRunning(true);
