@@ -4,9 +4,4 @@
 
 [functions]
   node_bundler = "esbuild"
-  external_node_modules = ["youtube-dl-exec"]
-
-[[redirects]]
-  from = "/api/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
+  external_node_modules = ["soundcloud.ts"]

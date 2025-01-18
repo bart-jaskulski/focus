@@ -21,7 +21,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [timeLeft, setTimeLeft] = useState(0);
   const [buttonText, setButtonText] = useState('Show time left');
-  const [audio] = useState(new Audio());
+  const [audio, setAudio] = useState(new Audio());
 
   const handleTimeChange = (amount) => {
     const newTime = Math.max(1, Math.min(120, minutes + amount));
@@ -66,7 +66,8 @@ export default function App() {
     setIsLoading(true);
     try {
       const theme = THEMES.find(t => t.name === selectedTheme);
-      
+
+      setAudio(new Audio())
       audio.src = `/api/audio?theme=${encodeURIComponent(theme.query)}`;
       await audio.play();
       
