@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Plus, Minus, Play, Square, Loader2 } from 'lucide-react';
 
 const THEMES = [
-  { name: 'Medieval', icon: '🏰', query: 'medieval ambient music' },
-  { name: 'Tavern', icon: '🍺', query: 'fantasy tavern ambient music' },
-  { name: 'Fantasy', icon: '🧙‍♂️', query: 'fantasy realm ambient' },
+  { name: 'Medieval', icon: '🏰', query: 'medieval ambient' },
+  { name: 'Tavern', icon: '🍺', query: 'fantasy tavern ambient' },
+  { name: 'Fantasy', icon: '🧙‍♂️', query: 'fantasy ambient' },
   { name: 'Sci-fi', icon: '🚀', query: 'sci fi atmosphere ambient' },
   { name: 'Jazz', icon: '🎷', query: 'jazz lofi' },
-  { name: 'Space', icon: '🌌', query: 'space ambient music' }
+  { name: 'Space', icon: '🌌', query: 'space ambient' }
 ];
 
 const PRESET_TIMES = [5, 15, 30];
@@ -22,6 +22,7 @@ export default function App() {
   const [timeLeft, setTimeLeft] = useState(0);
   const [buttonText, setButtonText] = useState('Show time left');
   const [audio, setAudio] = useState(new Audio());
+  const audioController = useRef(null);
 
   const handleTimeChange = (amount) => {
     const newTime = Math.max(1, Math.min(120, minutes + amount));
@@ -63,19 +64,34 @@ export default function App() {
       return;
     }
 
+    // Abort any existing fetch request
+    if (audioController.current) {
+      audioController.current.abort();
+    }
+    audioController.current = new AbortController();
+    const signal = audioController.current.signal;
+
     setIsLoading(true);
     try {
       const theme = THEMES.find(t => t.name === selectedTheme);
-
-      setAudio(new Audio())
-      audio.src = `/.netlify/functions/audio?theme=${encodeURIComponent(theme.query)}`;
-      await audio.play();
-      
+      const response = await fetch(`/.netlify/functions/audio?theme=${encodeURIComponent(theme.query)}`, { signal });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const blob = await response.blob();
+      const audioURL = URL.createObjectURL(blob);
+      const newAudio = new Audio(audioURL);
+      setAudio(newAudio);
+      await newAudio.play();
       setIsRunning(true);
       setTimeLeft(minutes * 60);
     } catch (error) {
-      console.error('Failed to start audio:', error);
-      alert('Failed to start audio playback. Please try again.');
+      if (error.name === 'AbortError') {
+        console.log('Fetch aborted');
+      } else {
+        console.error('Failed to start audio:', error);
+        alert('Failed to start audio playback. Please try again.');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -84,7 +100,16 @@ export default function App() {
   const handleStop = () => {
     setIsRunning(false);
     setTimeLeft(0);
-    audio.pause();
+    if (audio) {
+      audio.pause();
+      audio.removeAttribute('src'); // Clear the source
+      audio.load(); // Reset the audio element
+    }
+    // Abort the fetch request if it's still ongoing
+    if (audioController.current) {
+      audioController.current.abort();
+      audioController.current = null;
+    }
   };
 
   const showTimeLeftTemporarily = () => {
@@ -102,7 +127,16 @@ export default function App() {
             clearInterval(interval);
             setIsRunning(false);
             showNotification();
-            audio.pause();
+            if (audio) {
+              audio.pause();
+              audio.removeAttribute('src');
+              audio.load();
+            }
+            // Abort the fetch request on timeout
+            if (audioController.current) {
+              audioController.current.abort();
+              audioController.current = null;
+            }
             return 0;
           }
           return prev - 1;
@@ -206,30 +240,30 @@ export default function App() {
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" /> Loading...
               </>
             ) : (
-              <>
-                <Play className="mr-2 h-4 w-4" /> Start Focus
-              </>
-            )}
+                <>
+                  <Play className="mr-2 h-4 w-4" /> Start Focus
+                </>
+              )}
           </Button>
         ) : (
-          <div className="space-y-4">
-            <div className="text-center text-xl font-medium">Focus now</div>
-            <Button 
-              variant="outline" 
-              className="w-full"
-              onClick={showTimeLeftTemporarily}
-            >
+            <div className="space-y-4">
+              <div className="text-center text-xl font-medium">Focus now</div>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={showTimeLeftTemporarily}
+              >
                 {buttonText}
-            </Button>
-            <Button 
-              variant="destructive" 
-              className="w-full"
-              onClick={handleStop}
-            >
-              <Square className="mr-2 h-4 w-4" /> Stop
-            </Button>
-          </div>
-        )}
+              </Button>
+              <Button 
+                variant="destructive" 
+                className="w-full"
+                onClick={handleStop}
+              >
+                <Square className="mr-2 h-4 w-4" /> Stop
+              </Button>
+            </div>
+          )}
       </Card>
     </div>
   );

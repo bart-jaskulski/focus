@@ -32,7 +32,7 @@ export default async function(req: Request, context: Context): Response {
     const tracks = await soundcloud.tracks.search({
       q: theme,
       "filter.duration": "long",
-      "filter.genre_or_tag": "ambient"
+      // "filter.genre_or_tag": "ambient"
     });
 
     console.log(`Found ${tracks.collection.length} tracks`);
